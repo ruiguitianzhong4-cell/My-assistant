@@ -5,93 +5,342 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="アシスタント">
-<title>アシスタント</title>
+<meta name="theme-color" content="#2b2540">
+<title>マイアシスタント</title>
 <style>
-  :root{color-scheme:light dark;--bg:#fff;--fg:#1a1a1a;--me:#d9ecff;--ai:#f0f0f0;--accent:#c96442}
-  @media(prefers-color-scheme:dark){:root{--bg:#111;--fg:#eee;--me:#1f3a56;--ai:#262626}}
+  :root{color-scheme:light dark;--bg:#fff;--fg:#1a1a1a;--me:#d9ecff;--ai:#f0f0f0;--accent:#c96442;--line:#8884;--sky1:#bfe3ff;--sky2:#eaf6ff;--ground:#7cc36b;--ground2:#5a9e4c}
+  @media(prefers-color-scheme:dark){:root{--bg:#111;--fg:#eee;--me:#1f3a56;--ai:#262626;--sky1:#2b2540;--sky2:#463b63;--ground:#3f6b3a;--ground2:#2c4d29}}
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,sans-serif;display:flex;flex-direction:column;height:100dvh}
-  header{padding:12px 16px;border-bottom:1px solid #8884;display:flex;gap:8px;align-items:center}
-  header input{flex:1;min-width:0;padding:8px;border:1px solid #8886;border-radius:8px;background:transparent;color:inherit;font-size:16px}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,"Hiragino Sans",sans-serif;display:flex;flex-direction:column;height:100dvh}
+  header{padding:10px 16px;border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:center}
+  header h1{font-size:16px;margin:0;flex:1}
+  header button{border:1px solid var(--line);background:transparent;color:inherit;border-radius:8px;padding:6px 10px;font-size:14px}
+  #stage{display:block;width:100%;height:auto;aspect-ratio:96/40;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:manipulation;border-bottom:1px solid var(--line)}
   #log{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
-  .m{max-width:85%;padding:10px 14px;border-radius:16px;line-height:1.5;white-space:pre-wrap}
+  .m{max-width:85%;padding:10px 14px;border-radius:16px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
   .user{align-self:flex-end;background:var(--me)}
   .ai{align-self:flex-start;background:var(--ai)}
-  .sys{align-self:center;font-size:13px;opacity:.7}
-  footer{padding:12px 16px calc(12px + env(safe-area-inset-bottom))}
-  #talk{width:100%;padding:18px;font-size:18px;border:0;border-radius:14px;background:var(--accent);color:#fff}
-  #talk:disabled{opacity:.5}
+  .sys{align-self:center;font-size:13px;opacity:.7;text-align:center}
+  footer{padding:10px 16px calc(10px + env(safe-area-inset-bottom));display:flex;gap:8px;border-top:1px solid var(--line)}
+  footer input{flex:1;min-width:0;padding:12px;border:1px solid var(--line);border-radius:12px;background:transparent;color:inherit;font-size:16px}
+  footer button{border:0;border-radius:12px;background:var(--accent);color:#fff;font-size:18px;padding:0 16px}
+  footer button:disabled{opacity:.5}
+  dialog{width:min(92vw,520px);max-height:85dvh;border:1px solid var(--line);border-radius:16px;background:var(--bg);color:var(--fg);padding:16px}
+  dialog::backdrop{background:#0006}
+  dialog h2{font-size:16px;margin:0 0 12px}
+  dialog label{display:block;font-size:13px;opacity:.8;margin:12px 0 4px}
+  dialog input,dialog textarea{width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;background:transparent;color:inherit;font-size:16px;font-family:inherit}
+  dialog textarea{min-height:90px}
+  #mems{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px}
+  #mems li{display:flex;gap:8px;align-items:center;background:var(--ai);border-radius:8px;padding:6px 10px;font-size:14px}
+  #mems li span{flex:1}
+  #mems li button{border:0;background:transparent;color:inherit;font-size:16px;opacity:.6}
+  .colors{display:flex;gap:8px;flex-wrap:wrap}
+  .colors button{width:32px;height:32px;border-radius:50%;border:2px solid var(--line)}
+  .colors button[aria-pressed=true]{border-color:var(--fg)}
+  .row{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+  .row button{padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:transparent;color:inherit;font-size:15px}
+  .row .primary{background:var(--accent);color:#fff;border:0}
+  .hint{font-size:12px;opacity:.6;margin:4px 0 0}
 </style>
 </head>
 <body>
 <header>
-  <input id="key" type="password" placeholder="Claude APIキー（この端末にだけ保存）">
+  <h1 id="title">マイアシスタント</h1>
+  <button id="openSettings">⚙️ 設定</button>
 </header>
+<canvas id="stage" width="96" height="40" aria-label="ドット絵のキャラクター（タップすると反応します）"></canvas>
 <div id="log"></div>
-<footer><button id="talk">🎤 話す</button></footer>
+<footer>
+  <input id="text" placeholder="メッセージを入力" enterkeyhint="send">
+  <button id="send" aria-label="送信">➤</button>
+  <button id="talk" aria-label="話す">🎤</button>
+</footer>
+
+<dialog id="settings">
+  <h2>設定</h2>
+  <label for="key">Claude APIキー（この端末にだけ保存）</label>
+  <input id="key" type="password" autocomplete="off">
+  <label for="myName">あなたの呼び名</label>
+  <input id="myName" placeholder="例：たろう">
+  <label for="petName">キャラの名前</label>
+  <input id="petName" placeholder="例：ドット">
+  <label>キャラの色</label>
+  <div class="colors" id="colors"></div>
+  <label for="profile">あなたのプロフィール・好み（自由に書いてOK）</label>
+  <textarea id="profile" placeholder="例：猫が好き。ゲームはRPG派。朝が弱い。甘いものに目がない。"></textarea>
+  <label>キャラが覚えたこと</label>
+  <ul id="mems"></ul>
+  <p class="hint">会話の中で、キャラがあなたの好みを自動で覚えていきます。✕で消せます。</p>
+  <div class="row">
+    <button id="closeSettings" class="primary">保存して閉じる</button>
+  </div>
+</dialog>
 
 <script>
 const $ = id => document.getElementById(id);
 const MODEL = 'claude-haiku-5-5';
-let history = [];
 
-const SYSTEM_PROMPT = 'あなたは私専用の音声アシスタントです。声で読み上げられるので、日本語で、短く自然な話し言葉で答えてください。箇条書きや記号は使わないでください。今日は' + new Date().toLocaleDateString('ja-JP', {year:'numeric',month:'long',day:'numeric',weekday:'long'}) + 'です。';
+/* ---------- 保存まわり（この端末のブラウザ内だけ） ---------- */
+function load(k, d){ try{ const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); }catch{ return d; } }
+function save(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch{} }
 
-$('key').value = localStorage.getItem('key') || '';
-$('key').onchange = () => localStorage.setItem('key', $('key').value.trim());
+const state = {
+  key: load('key2', '') || (()=>{ try{ return localStorage.getItem('key') || ''; }catch{ return ''; } })(),
+  myName: load('myName', ''),
+  petName: load('petName', 'ドット'),
+  profile: load('profile', ''),
+  mems: load('mems', []),
+  color: load('color', 0),
+};
+let history = load('history', []);
 
+/* ---------- ドット絵キャラ ---------- */
+const COLORS = [
+  {body:'#ffd66b', shade:'#e8a93c', name:'きいろ'},
+  {body:'#8fd3ff', shade:'#4fa3d8', name:'みずいろ'},
+  {body:'#ffa6c9', shade:'#e0729f', name:'ピンク'},
+  {body:'#a8e68a', shade:'#6cb552', name:'みどり'},
+  {body:'#e9e3ff', shade:'#b3a6e6', name:'しろ'},
+];
+// 16x16。k=輪郭 w=体 s=影 p=ほっぺ
+const BODY = [
+  '................',
+  '..kk........kk..',
+  '.kwwk......kwwk.',
+  '.kwwwkkkkkkwwwk.',
+  '.kwwwwwwwwwwwwk.',
+  'kwwwwwwwwwwwwwwk',
+  'kwwwwwwwwwwwwwwk',
+  'kwwwwwwwwwwwwwwk',
+  'kwwwwwwwwwwwwwwk',
+  'kwwppwwwwwwppwwk',
+  'kwwwwwwwwwwwwwwk',
+  'kswwwwwwwwwwwwsk',
+  '.ksswwwwwwwwssk.',
+  '..kkkkkkkkkkkk..',
+];
+const FEET = [
+  ['...kwk....kwk...', '...kkk....kkk...'],   // 立ち
+  ['..kwk......kwk..', '..kkk......kkk..'],   // 歩き1
+  ['....kwk..kwk....', '....kkk..kkk....'],   // 歩き2
+];
+const ICONS = { // 5x5 の吹き出しアイコン
+  heart:['.r.r.','rrrrr','rrrrr','.rrr.','..r..'],
+  note: ['..kk.','..k.k','..k..','kkk..','kkk..'],
+  q:    ['.kkk.','k...k','...k.','..k..','..k..'],
+  ex:   ['..k..','..k..','..k..','.....','..k..'],
+  zz:   ['kkkk.','..k..','.k...','kkkk.','.....'],
+};
+
+const cv = $('stage'), ctx = cv.getContext('2d');
+const W = 96, H = 40, GROUND = 34;
+const pet = {x:40, dir:1, mode:'idle', walkUntil:0, nextDecision:0, jump:0, icon:null, iconUntil:0, blinkUntil:0, nextBlink:0, talking:false, sleeping:false, lastAct:Date.now()};
+
+function px(x,y,c){ ctx.fillStyle=c; ctx.fillRect(x,y,1,1); }
+function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+
+function drawSprite(x, y, t){
+  const col = COLORS[state.color] || COLORS[0];
+  const map = {k:'#2a2233', w:col.body, s:col.shade, p:'#ff8fa3'};
+  const flip = pet.dir < 0;
+  const put = (cx, cy, c) => px(x + (flip ? 15 - cx : cx), y + cy, c);
+  BODY.forEach((row, r) => [...row].forEach((ch, c) => { if(map[ch]) put(c, r, map[ch]); }));
+  const walking = pet.mode === 'walk';
+  const f = walking ? FEET[1 + (Math.floor(t/180) % 2)] : FEET[0];
+  f.forEach((row, r) => [...row].forEach((ch, c) => { if(map[ch]) put(c, 14 + r, map[ch]); }));
+
+  // 目
+  const look = pet.mode === 'think' ? -1 : 0;
+  const ey = 6 + (look < 0 ? -1 : 0);
+  if(pet.sleeping || t < pet.blinkUntil){
+    for(const ex of [4,5,10,11]) put(ex, ey+1, '#2a2233');
+  }else if(pet.icon === 'heart' && t < pet.iconUntil){
+    // にっこり目 ^ ^
+    put(4,ey+1,'#2a2233'); put(5,ey,'#2a2233'); put(6,ey+1,'#2a2233');
+    put(9,ey+1,'#2a2233'); put(10,ey,'#2a2233'); put(11,ey+1,'#2a2233');
+  }else{
+    for(const ex of [4,10]){
+      put(ex,ey,'#2a2233'); put(ex+1,ey,'#2a2233'); put(ex,ey+1,'#2a2233'); put(ex+1,ey+1,'#2a2233');
+      put(ex+1,ey,'#ffffff');
+    }
+  }
+  // 口
+  if(pet.talking && Math.floor(t/140) % 2 === 0){
+    put(7,9,'#2a2233'); put(8,9,'#2a2233'); put(7,10,'#c2334d'); put(8,10,'#c2334d'); put(6,10,'#2a2233'); put(9,10,'#2a2233'); put(7,11,'#2a2233'); put(8,11,'#2a2233');
+  }else if(pet.sleeping){
+    put(7,10,'#2a2233'); put(8,10,'#2a2233');
+  }else{
+    put(6,9,'#2a2233'); put(7,10,'#2a2233'); put(8,10,'#2a2233'); put(9,9,'#2a2233');
+  }
+}
+
+function drawIcon(name, x, y){
+  const m = ICONS[name]; if(!m) return;
+  const cmap = {r:'#ff4d6d', k: css('--fg') || '#222'};
+  m.forEach((row,r)=>[...row].forEach((ch,c)=>{ if(cmap[ch]) px(x+c, y+r, cmap[ch]); }));
+}
+
+// 背景（雲と草）
+const clouds = [{x:10,y:5,w:12},{x:58,y:9,w:9}];
+function drawBg(t){
+  const g = ctx.createLinearGradient(0,0,0,GROUND);
+  g.addColorStop(0, css('--sky1')); g.addColorStop(1, css('--sky2'));
+  ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle = '#ffffffaa';
+  for(const c of clouds){
+    const cx = Math.round((c.x + t/900) % (W+20)) - 10;
+    ctx.fillRect(cx, c.y, c.w, 2); ctx.fillRect(cx+2, c.y-1, c.w-4, 1);
+  }
+  ctx.fillStyle = css('--ground'); ctx.fillRect(0,GROUND,W,H-GROUND);
+  ctx.fillStyle = css('--ground2');
+  for(let i=0;i<W;i+=7) { px(i+2,GROUND,ctx.fillStyle); px(i+5,GROUND+3,ctx.fillStyle); }
+}
+
+function decide(t){
+  if(pet.talking || pet.mode === 'think' || pet.mode === 'listen') return;
+  // しばらく放っておくと寝る
+  if(Date.now() - pet.lastAct > 60000){ pet.sleeping = true; pet.mode='idle'; return; }
+  if(t < pet.nextDecision) return;
+  if(Math.random() < 0.55){
+    pet.mode = 'walk';
+    pet.dir = Math.random() < 0.5 ? -1 : 1;
+    pet.walkUntil = t + 800 + Math.random()*1800;
+  }else{
+    pet.mode = 'idle';
+    if(Math.random() < 0.15) react('note', 1500);
+  }
+  pet.nextDecision = t + 1500 + Math.random()*2500;
+}
+
+function react(icon, ms=1600, jump=false){
+  pet.icon = icon; pet.iconUntil = performance.now() + ms;
+  if(jump) pet.jump = performance.now();
+}
+function wake(){ pet.lastAct = Date.now(); pet.sleeping = false; }
+function setMode(m){ wake(); pet.mode = m; if(m==='think') pet.icon='q', pet.iconUntil=Infinity; else if(m==='listen') pet.icon='ex', pet.iconUntil=Infinity; else if(pet.iconUntil===Infinity) pet.icon=null; }
+
+function frame(t){
+  decide(t);
+  if(pet.mode === 'walk'){
+    if(t > pet.walkUntil) pet.mode = 'idle';
+    pet.x += pet.dir * 0.12;
+    if(pet.x < 2){ pet.x = 2; pet.dir = 1; }
+    if(pet.x > W-18){ pet.x = W-18; pet.dir = -1; }
+  }
+  if(t > pet.nextBlink){ pet.blinkUntil = t + 140; pet.nextBlink = t + 2000 + Math.random()*3000; }
+
+  let y = GROUND - 16;
+  if(pet.mode === 'idle' && !pet.sleeping && Math.floor(t/600)%2) y += 1;     // ゆらゆら
+  if(pet.talking && Math.floor(t/280)%2) y -= 1;                               // 話すとぴょこぴょこ
+  const js = (t - pet.jump)/1000;
+  if(js >= 0 && js < 0.4) y -= Math.round(Math.sin(js/0.4*Math.PI) * 6);       // ジャンプ
+
+  drawBg(t);
+  drawSprite(Math.round(pet.x), y, t);
+  const ix = Math.round(pet.x) + 12, iy = y - 6 + (Math.floor(t/400)%2);
+  if(pet.sleeping) drawIcon('zz', ix, iy);
+  else if(pet.icon && t < pet.iconUntil){
+    if(pet.mode === 'think'){ // 「…」アニメ
+      const n = Math.floor(t/300)%4;
+      for(let i=0;i<n;i++) px(ix+i*2, iy+4, css('--fg'));
+    } else drawIcon(pet.icon, ix, iy);
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+cv.addEventListener('click', e => {
+  const r = cv.getBoundingClientRect();
+  const x = (e.clientX - r.left) / r.width * W;
+  wake();
+  if(Math.abs(x - (pet.x + 8)) < 12) react('heart', 1500, true);
+  else { pet.mode='walk'; pet.dir = x > pet.x+8 ? 1 : -1; pet.walkUntil = performance.now() + Math.abs(x-pet.x-8)/0.12*16; pet.nextDecision = pet.walkUntil + 1500; }
+});
+
+/* ---------- チャット ---------- */
 function add(cls, text){
   const d = document.createElement('div');
   d.className = 'm ' + cls;
   d.textContent = text;
   $('log').appendChild(d);
-  d.scrollIntoView();
+  d.scrollIntoView({block:'end'});
+}
+
+function systemPrompt(){
+  const today = new Date().toLocaleDateString('ja-JP', {year:'numeric',month:'long',day:'numeric',weekday:'long'});
+  const me = state.myName || 'ユーザー';
+  return [
+    `あなたは「${state.petName}」という名前の、${me}専用の小さなドット絵アシスタントです。親しみやすい友達のような口調で、日本語で短めに答えてください。返事は読み上げられることもあるので、箇条書きや記号はなるべく使わないでください。`,
+    `今日は${today}です。`,
+    state.profile ? `【${me}が自分で書いたプロフィール】\n${state.profile}` : '',
+    state.mems.length ? `【これまでに覚えた${me}のこと】\n` + state.mems.map(m=>'・'+m).join('\n') : '',
+    `会話の中で${me}の好み・趣味・苦手なもの・予定・大事な出来事など、今後の会話に役立つ新しい情報を知ったら、返事の一番最後に「【覚えた:短いメモ】」の形で書いてください（1つにつき1個、すでに覚えていることは書かない）。覚えたことは自然に会話に活かしてください。`,
+  ].filter(Boolean).join('\n\n');
 }
 
 function speak(text){
+  if(!('speechSynthesis' in window)) return;
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
   u.lang = 'ja-JP';
+  u.onstart = () => { pet.talking = true; };
+  u.onend = u.onerror = () => { pet.talking = false; setMode('idle'); };
   speechSynthesis.speak(u);
 }
 
+let voiceMode = false;
 async function ask(text){
-  const key = $('key').value.trim();
-  if(!key){ add('sys','先にAPIキーを入力してください'); return; }
+  text = text.trim(); if(!text) return;
+  if(!state.key){ add('sys','⚙️ 設定からClaude APIキーを入力してください'); $('settings').showModal(); return; }
   add('user', text);
   history.push({role:'user', content:text});
-  history = history.slice(-12);           // 直近のやり取りだけ送って節約
-  $('talk').disabled = true;
+  history = history.slice(-20);
+  $('send').disabled = $('talk').disabled = true;
+  setMode('think');
   try{
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method:'POST',
       headers:{
         'content-type':'application/json',
-        'x-api-key': key,
+        'x-api-key': state.key,
         'anthropic-version':'2023-06-01',
         'anthropic-dangerous-direct-browser-access':'true'
       },
-      body: JSON.stringify({model:MODEL, max_tokens:600, system:SYSTEM_PROMPT, messages:history})
+      body: JSON.stringify({model:MODEL, max_tokens:600, system:systemPrompt(), messages:history})
     });
     const data = await res.json();
     if(!res.ok) throw new Error(data.error?.message || res.status);
-    const reply = data.content.filter(b=>b.type==='text').map(b=>b.text).join('');
-    history.push({role:'assistant', content:reply});
+    const raw = data.content.filter(b=>b.type==='text').map(b=>b.text).join('');
+    history.push({role:'assistant', content:raw});
+    save('history', history);
+
+    const learned = [...raw.matchAll(/【覚えた[:：]\s*([^】]+)】/g)].map(m=>m[1].trim());
+    const reply = raw.replace(/【覚えた[:：][^】]*】/g,'').trim();
     add('ai', reply);
-    speak(reply);
+    for(const m of learned){
+      if(!state.mems.includes(m)){ state.mems.push(m); add('sys','📝 覚えた：' + m); }
+    }
+    if(learned.length){ save('mems', state.mems); react('heart', 1800, true); }
+    setMode('idle');
+    if(voiceMode) speak(reply);
+    else { pet.talking = true; setTimeout(()=>{ pet.talking=false; }, Math.min(4000, 300 + reply.length*60)); }
   }catch(e){
     history.pop();
+    setMode('idle'); react('ex', 2000);
     add('sys','エラー: ' + e.message);
   }finally{
-    $('talk').disabled = false;
+    $('send').disabled = $('talk').disabled = false;
   }
 }
 
+$('send').onclick = () => { voiceMode = false; const v = $('text').value; $('text').value=''; ask(v); };
+$('text').addEventListener('keydown', e => { if(e.key==='Enter' && !e.isComposing){ e.preventDefault(); $('send').click(); } });
+
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 let rec, listening = false;
-
 $('talk').onclick = () => {
-  if(!SR){ add('sys','このブラウザは音声認識に対応していません'); return; }
+  if(!SR){ add('sys','このブラウザは音声認識に対応していません。文字で話しかけてね'); return; }
   if(listening){ rec.stop(); return; }
   // iPhoneでは、ボタン操作の中で一度読み上げを呼んでおくと、後の読み上げが許可される
   speechSynthesis.cancel();
@@ -99,12 +348,52 @@ $('talk').onclick = () => {
   rec = new SR();
   rec.lang = 'ja-JP';
   rec.interimResults = false;
-  rec.onstart = () => { listening = true; $('talk').textContent = '聞いています…（タップで停止）'; };
-  rec.onend = () => { listening = false; $('talk').textContent = '🎤 話す'; };
+  rec.onstart = () => { listening = true; setMode('listen'); $('talk').textContent = '⏹'; };
+  rec.onend = () => { listening = false; if(pet.mode==='listen') setMode('idle'); $('talk').textContent = '🎤'; };
   rec.onerror = e => add('sys','音声認識エラー: ' + e.error);
-  rec.onresult = e => ask(e.results[0][0].transcript);
+  rec.onresult = e => { voiceMode = true; ask(e.results[0][0].transcript); };
   rec.start();
 };
+
+/* ---------- 設定画面 ---------- */
+function renderColors(){
+  $('colors').innerHTML = '';
+  COLORS.forEach((c,i)=>{
+    const b = document.createElement('button');
+    b.style.background = c.body; b.setAttribute('aria-label', c.name);
+    b.setAttribute('aria-pressed', i===state.color);
+    b.onclick = () => { state.color = i; save('color', i); renderColors(); };
+    $('colors').appendChild(b);
+  });
+}
+function renderMems(){
+  $('mems').innerHTML = '';
+  if(!state.mems.length){ const li=document.createElement('li'); li.innerHTML='<span>まだ何も覚えていません</span>'; $('mems').appendChild(li); return; }
+  state.mems.forEach((m,i)=>{
+    const li = document.createElement('li');
+    const s = document.createElement('span'); s.textContent = m;
+    const x = document.createElement('button'); x.textContent='✕'; x.setAttribute('aria-label','忘れる');
+    x.onclick = () => { state.mems.splice(i,1); save('mems', state.mems); renderMems(); };
+    li.append(s,x); $('mems').appendChild(li);
+  });
+}
+function renderTitle(){ $('title').textContent = state.petName || 'マイアシスタント'; }
+
+$('openSettings').onclick = () => {
+  $('key').value = state.key; $('myName').value = state.myName; $('petName').value = state.petName; $('profile').value = state.profile;
+  renderColors(); renderMems(); $('settings').showModal();
+};
+$('closeSettings').onclick = () => {
+  state.key = $('key').value.trim(); state.myName = $('myName').value.trim();
+  state.petName = $('petName').value.trim() || 'ドット'; state.profile = $('profile').value.trim();
+  save('key2', state.key); save('myName', state.myName); save('petName', state.petName); save('profile', state.profile);
+  renderTitle(); $('settings').close(); react('heart', 1500, true);
+};
+
+renderTitle();
+for(const h of history.slice(-6)) add(h.role==='user'?'user':'ai', h.content.replace(/【覚えた[:：][^】]*】/g,'').trim());
+if(!state.key) add('sys', 'はじめまして！ ⚙️設定でAPIキーと、あなたの好みを教えてね');
+else add('sys', `${state.petName}が待ってたよ`);
 </script>
 </body>
 </html>
