@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>スキップ・ビート</title>
+<style>
+:root{--bg:#fffaf3;--fg:#2a2420;--sub:#7a6e64;--card:#fff;--line:#e8ddd0;--accent:#e2683c;--hi:#2f7dd1;--rest:#c9bdb0}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1b1815;--fg:#f1e9e0;--sub:#a99c90;--card:#26221e;--line:#3a332d;--accent:#f08a5d;--hi:#6fb0ff;--rest:#5a5047}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;line-height:1.5}
+main{max-width:860px;margin:0 auto;padding:20px 16px 60px}
+h1{margin:0;font-size:28px}
+.meta{color:var(--sub);font-size:14px;margin:4px 0 16px}
+.player{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;gap:10px;margin-bottom:20px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button{font:inherit;padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer}
+button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+input[type=range]{flex:1;min-width:120px}
+audio{width:100%}
+h2{font-size:16px;margin:22px 0 8px;color:var(--accent)}
+.bars{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
+.bar{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:6px 8px}
+.bar.now{outline:2px solid var(--accent)}
+.ch{font-size:12px;color:var(--sub);display:flex;justify-content:space-between}
+.notes{display:flex;height:40px;align-items:center}
+.n{text-align:center;font-weight:700;font-size:15px;border-left:1px dotted var(--line)}
+.n:first-child{border-left:0}
+.n.r{color:var(--rest);font-weight:400}
+.n.h{color:var(--hi)}
+.n small{display:block;font-size:10px;font-weight:400;color:var(--sub);line-height:1}
+.legend{font-size:13px;color:var(--sub)}
+.legend b{color:var(--hi)}
+</style>
+</head>
+<body>
+<main>
+<h1>スキップ・ビート</h1>
+<div class="meta">ハ長調 · 4/4 · ♩=150 · 約42秒 · 電子リコーダー用（ド〜高いレ）</div>
+
+<div class="player">
+  <div class="row">
+    <button id="bFull" class="on">🎵 お手本（メロディ入り）</button>
+    <button id="bKara">🎤 伴奏だけ（一緒に吹く）</button>
+  </div>
+  <audio id="au" controls preload="auto" src="skip_beat_full.mp3"></audio>
+  <div class="row"><span>練習スピード</span><input id="spd" type="range" min="0.6" max="1" step="0.05" value="1"><span id="spdv">100%</span></div>
+</div>
+
+<div class="legend">1マス＝8分音符の長さ。<b>青い字</b>は高い音（ド' = 高いド、レ' = 高いレ）。「・」は休み。イントロ2小節のあとから吹き始めます。</div>
+<div id="score"></div>
+</main>
+<script>
+const SONG = {"title": "スキップ・ビート", "bpm": 150, "bars": [{"section": "イントロ", "chords": ["C"], "notes": [[null, 8]]}, {"section": null, "chords": ["G"], "notes": [[null, 8]]}, {"section": "Aメロ", "chords": ["C"], "notes": [["E5", 1], ["G5", 1], [null, 1], ["G5", 1], ["A5", 1], ["G5", 1], ["E5", 2]]}, {"section": null, "chords": ["Am"], "notes": [["C5", 1], ["E5", 1], [null, 1], ["E5", 1], ["D5", 2], ["C5", 2]]}, {"section": null, "chords": ["F"], "notes": [["A5", 1], ["A5", 1], [null, 1], ["A5", 1], ["C6", 1], ["A5", 1], ["G5", 2]]}, {"section": null, "chords": ["G"], "notes": [["F5", 1], ["E5", 1], ["D5", 4], [null, 2]]}, {"section": null, "chords": ["C"], "notes": [["E5", 1], ["G5", 1], [null, 1], ["G5", 1], ["A5", 1], ["G5", 1], ["E5", 2]]}, {"section": null, "chords": ["Am"], "notes": [["C5", 1], ["E5", 1], [null, 1], ["E5", 1], ["G5", 2], ["A5", 2]]}, {"section": null, "chords": ["F", "G"], "notes": [["C6", 1], ["A5", 1], ["G5", 1], ["A5", 1], ["G5", 1], ["F5", 1], ["E5", 1], ["D5", 1]]}, {"section": null, "chords": ["C"], "notes": [["C5", 4], [null, 4]]}, {"section": "Bメロ", "chords": ["F"], "notes": [[null, 1], ["A5", 1], [null, 1], ["A5", 1], ["G5", 1], ["A5", 1], [null, 1], ["C6", 1]]}, {"section": null, "chords": ["G"], "notes": [[null, 1], ["B5", 1], [null, 1], ["B5", 1], ["A5", 1], ["G5", 2], ["D5", 1]]}, {"section": null, "chords": ["Em"], "notes": [[null, 1], ["G5", 1], [null, 1], ["G5", 1], ["E5", 1], ["G5", 1], [null, 1], ["B5", 1]]}, {"section": null, "chords": ["Am"], "notes": [["A5", 6], [null, 2]]}, {"section": null, "chords": ["F"], "notes": [[null, 1], ["A5", 1], [null, 1], ["A5", 1], ["G5", 1], ["A5", 1], [null, 1], ["C6", 1]]}, {"section": null, "chords": ["G"], "notes": [[null, 1], ["B5", 1], [null, 1], ["B5", 1], ["C6", 1], ["D6", 1], ["C6", 1], ["B5", 1]]}, {"section": null, "chords": ["Am"], "notes": [["C6", 2], ["A5", 2], ["E5", 2], ["A5", 2]]}, {"section": null, "chords": ["G"], "notes": [["G5", 2], [null, 1], ["G5", 1], ["G5", 1], ["A5", 1], ["B5", 2]]}, {"section": "サビ", "chords": ["F"], "notes": [["C6", 2], ["C6", 1], ["A5", 1], [null, 1], ["A5", 1], ["C6", 2]]}, {"section": null, "chords": ["G"], "notes": [["D6", 2], ["B5", 1], ["G5", 1], [null, 1], ["G5", 1], ["B5", 2]]}, {"section": null, "chords": ["Em"], "notes": [["B5", 1], ["B5", 1], [null, 1], ["G5", 1], ["B5", 1], ["C6", 1], ["B5", 2]]}, {"section": null, "chords": ["Am"], "notes": [["A5", 3], ["E5", 1], ["A5", 2], ["B5", 2]]}, {"section": null, "chords": ["F"], "notes": [["C6", 2], ["C6", 1], ["A5", 1], [null, 1], ["A5", 1], ["C6", 2]]}, {"section": null, "chords": ["G"], "notes": [["D6", 2], ["B5", 1], ["G5", 1], [null, 1], ["D6", 1], ["C6", 1], ["B5", 1]]}, {"section": null, "chords": ["F", "G"], "notes": [["A5", 1], ["C6", 1], [null, 1], ["A5", 1], ["G5", 1], ["B5", 1], [null, 1], ["D6", 1]]}, {"section": null, "chords": ["C"], "notes": [["C6", 1], [null, 1], ["G5", 1], ["C6", 1], [null, 4]]}]};
+const DO = {C:'ド',D:'レ',E:'ミ',F:'ファ',G:'ソ',A:'ラ',B:'シ'};
+const score = document.getElementById('score');
+let grid, cells = [];
+SONG.bars.forEach((bar,i)=>{
+  if(bar.section){ const h=document.createElement('h2'); h.textContent=bar.section; score.appendChild(h);
+    grid=document.createElement('div'); grid.className='bars'; score.appendChild(grid); }
+  const d=document.createElement('div'); d.className='bar';
+  d.innerHTML=`<div class="ch"><span>${i+1}</span><span>${bar.chords.join(' → ')}</span></div>`;
+  const ns=document.createElement('div'); ns.className='notes';
+  bar.notes.forEach(([p,len])=>{
+    const s=document.createElement('div'); s.className='n'; s.style.flex=len;
+    if(!p){ s.classList.add('r'); s.textContent='・'; }
+    else { const hi=p.endsWith('6'); if(hi) s.classList.add('h');
+      s.innerHTML = DO[p[0]] + (hi?"'":'') + (len>=3?`<small>${'ー'.repeat(Math.min(2,len/2|0))}</small>`:''); }
+    ns.appendChild(s);
+  });
+  d.appendChild(ns); grid.appendChild(d); cells.push(d);
+});
+const au=document.getElementById('au'), spd=document.getElementById('spd');
+const barSec = 60/SONG.bpm*4;
+function setSrc(file, btn){ const t=au.currentTime, play=!au.paused; au.src=file; au.playbackRate=+spd.value; au.preservesPitch=true;
+  au.addEventListener('loadedmetadata',()=>{au.currentTime=t; if(play) au.play();},{once:true});
+  document.querySelectorAll('.player button').forEach(b=>b.classList.toggle('on',b===btn)); }
+document.getElementById('bFull').onclick=e=>setSrc('skip_beat_full.mp3',e.target);
+document.getElementById('bKara').onclick=e=>setSrc('skip_beat_karaoke.mp3',e.target);
+spd.oninput=()=>{ au.playbackRate=+spd.value; document.getElementById('spdv').textContent=Math.round(spd.value*100)+'%'; };
+let last=-1;
+au.ontimeupdate=()=>{ const b=Math.floor(au.currentTime/barSec); if(b!==last){ cells[last]?.classList.remove('now'); cells[b]?.classList.add('now'); last=b; } };
+</script>
+</body>
+</html>
